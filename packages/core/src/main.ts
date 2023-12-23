@@ -16,9 +16,9 @@ function createTestbedBuilder<TClass>(
     });
 
     const adapter = packageResolver.resolveCorrespondingAdapter();
-    const unitMocker = new UnitMocker(mockFn);
+    const unitMocker = new UnitMocker(mockFn, console, adapter);
 
-    return UnitBuilder.create<TClass>(mockFn, unitMocker, adapter, console);
+    return UnitBuilder.create<TClass>(mockFn, unitMocker);
   } catch (error: unknown) {
     throw new AdapterNotFoundError(`Automock requires an adapter to seamlessly integrate with different dependency injection frameworks.
 It seems that you haven't installed an appropriate adapter package. To resolve this issue, please install

@@ -5,7 +5,7 @@ import {
   InjectableIdentifier,
   IdentifierNotFoundError,
 } from '@automock/common';
-import { MocksContainer } from './mocks-container';
+import { DependencyContainer } from './dependency-container';
 
 /**
  * Provides a reference to mock objects that have been mocked for testing
@@ -39,6 +39,30 @@ export interface UnitReference {
     type: Type<TDependency>,
     identifierMetadata: IdentifierMetadata
   ): StubbedInstance<TDependency>;
+
+  /**
+   * Retrieves a reference to the real instance object of a dependency corresponding to its type
+   * identifier.
+   *
+   * @since 2.0.0
+   * @template TDependency The type of the dependency being retrieved.
+   * @param type The type representing the dependency.
+   * @returns The mocked object corresponding to the provided type identifier.
+   */
+  get<TDependency>(type: Type<TDependency>): TDependency;
+
+  /**
+   * Retrieves a reference to the real instance object of a dependency corresponding to its
+   * type identifier and metadata object.
+   *
+   * @since 2.1.0
+   * @template TDependency The type of the dependency being retrieved.
+   * @param type The type representing the dependency.
+   * @param identifierMetadata A metadata object that corresponds to the type identifier.
+   * @returns StubbedInstance<TDependency> The mocked object corresponding to the provided
+   * symbol-based token.
+   */
+  get<TDependency>(type: Type<TDependency>, identifierMetadata: IdentifierMetadata): TDependency;
 
   /**
    * Retrieves a reference to the mocked object of a dependency corresponding to a string-based token.
@@ -127,7 +151,7 @@ export interface UnitReference {
   get<TDependency>(
     identifier: Type<TDependency> | string | symbol,
     identifierMetadata?: IdentifierMetadata
-  ): StubbedInstance<TDependency>;
+  ): StubbedInstance<TDependency> | TDependency;
 
   /**
    * Retrieves a mocked object or a constant value of a dependency using its type, string, or symbol token.
@@ -147,12 +171,12 @@ export interface UnitReference {
 }
 
 export class UnitReference {
-  public constructor(private readonly mocksContainer: MocksContainer) {}
+  public constructor(private readonly mocksContainer: DependencyContainer) {}
 
   public get<TDependency>(
     identifier: InjectableIdentifier,
     metadata?: IdentifierMetadata
-  ): StubbedInstance<TDependency> | ConstantValue {
+  ): StubbedInstance<TDependency> | TDependency | ConstantValue {
     const dependency = this.mocksContainer.resolve<TDependency>(identifier, metadata);
 
     if (!dependency) {

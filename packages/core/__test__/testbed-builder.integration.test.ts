@@ -1,106 +1,92 @@
-import { Type } from '@automock/types';
 import { TestBedBuilder, UnitReference, UnitTestBed } from '../src';
 import { UnitBuilder } from '../src/services/testbed-builder';
 import { UnitMocker } from '../src/services/unit-mocker';
+import { FakeAdapter } from './assets/integration.assets';
+import { mock } from './assets/mock.static';
 import {
-  ArbitraryClassFive,
-  ArbitraryClassFour,
-  ArbitraryClassOne,
-  ArbitraryClassTwo,
-  ClassUnderTest,
-  FakeAdapter,
-} from './assets/integration.assets';
+  Logger,
+  Repository,
+  UserApiService,
+  UserDal,
+  UserService,
+  UserVerificationService,
+  HttpClient,
+  UserDigestService,
+  ApiService,
+  DatabaseService,
+} from './injectables-registry.fixture';
+import { StubbedInstance } from '@automock/types';
+import Mocked = jest.Mocked;
 
-const MockedFromBuilder = Symbol.for('MockedFromBuilder');
-const MockedFromMocker = Symbol.for('MockFromMocker');
-const symbolIdentifier = Symbol.for('TOKEN_METADATA');
-
-describe('Builder Integration Test', () => {
-  let underTest: TestBedBuilder<ClassUnderTest>;
+describe('UserService TestBed Builder Integration Test', () => {
+  let unitBuilder: TestBedBuilder<UserService>;
   const loggerMock = { warn: jest.fn() } as Partial<Console>;
 
-  // It's a mark for a function that mocks the mock function, don't be confused by the name
-  const mockFunctionMockOfBuilder = jest.fn(() => MockedFromBuilder);
-  const mockFunctionMockOfMocker = jest.fn(() => MockedFromMocker);
-
   beforeAll(() => {
-    underTest = UnitBuilder.create<ClassUnderTest>(
-      mockFunctionMockOfBuilder,
-      new UnitMocker(mockFunctionMockOfMocker),
-      FakeAdapter,
-      loggerMock as Console
-    )(ClassUnderTest);
+    unitBuilder = UnitBuilder.create<UserService>(
+      mock,
+      new UnitMocker(mock, loggerMock as Console, FakeAdapter)
+    )(UserService);
   });
 
   describe('creating a testbed builder with some mock overrides', () => {
-    let unitTestBed: UnitTestBed<ClassUnderTest>;
+    let userServiceAsIfItWasUnderTest: UserService;
+    let unitRef: UnitReference;
 
     beforeAll(() => {
-      unitTestBed = underTest
-        .mock(ArbitraryClassTwo)
-        .using({
-          print: () => 'overridden',
-        })
-        .mock(ArbitraryClassFour)
-        .using({
-          print: () => 'overridden',
-        })
-        .mock('ANOTHER_TOKEN')
-        .using({
-          print: () => 'overridden',
-        })
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        .mock(symbolIdentifier, { key: 'value' })
-        .using({
-          print: () => 'overridden',
-        })
-        .mock<string>('STRING_TOKEN')
-        .using('ARBITRARY_STRING')
-        .mock('TOKEN_WITH_UNDEFINED')
-        .using('SOME_VALUE')
+      const testBed = unitBuilder
+        .expose(UserApiService)
+        .expose(UserDal)
+        .mock(Logger)
+        .using({ log: jest.fn().mockReturnValue('overridden') })
+        .mock<Repository>('Repository')
+        .using({ find: () => ['overridden'] })
         .compile();
+
+      userServiceAsIfItWasUnderTest = testBed.unit;
+      unitRef = testBed.unitRef;
     });
 
-    describe('override the dependencies from the builder, and leave the rest for the dependencies mocked', () => {
-      it.each([
-        [ArbitraryClassOne.name, undefined, MockedFromMocker, ArbitraryClassOne],
-        [ArbitraryClassTwo.name, undefined, MockedFromBuilder, ArbitraryClassTwo],
-        [ArbitraryClassFive.name, undefined, MockedFromMocker, ArbitraryClassFive],
-        [
-          'custom string-based token with metadata',
-          { metadataKey: 'value' },
-          MockedFromMocker,
-          'ArbitraryClassSix',
-        ],
-        [ArbitraryClassFour.name, undefined, MockedFromBuilder, ArbitraryClassFour],
-        ['custom string-based token with function', undefined, MockedFromBuilder, 'ANOTHER_TOKEN'],
-        ['custom token with undefined value', undefined, 'SOME_VALUE', 'TOKEN_WITH_UNDEFINED'],
-        ['custom symbol-based token', { key: 'value' }, MockedFromBuilder, symbolIdentifier],
-        [ArbitraryClassFive.name, undefined, MockedFromMocker, ArbitraryClassFive],
-        ['custom token with constant value', undefined, 'ARBITRARY_STRING', 'STRING_TOKEN'],
-      ])(
-        'should return a mock or a value for %p, with metadata %p mocked from %p',
-        (
-          name: string,
-          metadata: undefined | unknown,
-          expectedResult: Type | string | symbol,
-          dependency: Type | string | symbol
-        ) => {
-          const stubbedInstance = unitTestBed.unitRef.get(dependency as never, metadata as never);
-          expect(stubbedInstance).toEqual(expectedResult);
-        }
-      );
+    it('should instantiate UserService with all dependencies properly resolved', () => {
+      expect(userServiceAsIfItWasUnderTest).toBeInstanceOf(UserService);
     });
 
-    it('should return an instance of the unit and a unit reference', () => {
-      expect(unitTestBed.unit).toBeInstanceOf(ClassUnderTest);
-      expect(unitTestBed.unitRef).toBeInstanceOf(UnitReference);
+    it('should invoke the Logger.log message on instantiation os the UserService', () => {
+      const mockedLogger: StubbedInstance<Logger> = unitRef.get<Logger>(Logger);
+      expect(mockedLogger.log).toHaveBeenNthCalledWith(1, 'Just logging a message');
+      expect(mockedLogger.log).toHaveBeenNthCalledWith(2, 'UserService initialized');
     });
 
-    it('should log a warning indicating the dependency was not found when mocking missing dependency', () => {
-      underTest.mock('does-not-exists').using({}).compile();
-      expect(loggerMock.warn).toHaveBeenCalledTimes(1);
+    it('should create a user successfully using UserDal.createUser and mock dependencies', () => {
+      // Retrieve the UserDal instance from unitRef
+      const userDal: UserDal = unitRef.get(UserDal);
+
+      // Create a mock user object for testing
+      const mockUser = {
+        name: 'Test User',
+        email: 'test@example.com',
+      };
+
+      // Mock the behavior of UserVerificationService if necessary
+      const userVerService: jest.Mocked<UserVerificationService> =
+        unitRef.get(UserVerificationService);
+
+      //
+
+      // userVerificationServiceMock.verify.mockReturnValue(true); // Assuming the user is valid
+
+      // Mock the behavior of DatabaseService if necessary
+      // const databaseServiceMock = unitRef.get<DatabaseService>(DatabaseService);
+      // Mock any relevant methods of DatabaseService, e.g., save, insert
+
+      userVerService.verify.mockReturnValue(true);
+
+      // Call createUser with the mock user
+      const createdUser = userDal.createUser(mockUser);
+
+      // Assert that the user is created successfully
+      expect(createdUser).toEqual(mockUser);
+      // Additional assertions can be added here to verify the interaction with the mocked dependencies
     });
   });
 });

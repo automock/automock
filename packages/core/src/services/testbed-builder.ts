@@ -1,63 +1,57 @@
 import { DeepPartial, Type, MockFunction, StubbedInstance } from '@automock/types';
-import {
-  IdentifierMetadata,
-  ConstantValue,
-  InjectableIdentifier,
-  AutomockDependenciesAdapter,
-} from '@automock/common';
+import { IdentifierMetadata, ConstantValue, InjectableIdentifier } from '@automock/common';
 import { UnitReference } from './unit-reference';
 import { UnitMocker } from './unit-mocker';
 import { MockOverride, TestBedBuilder, UnitTestBed } from '../public-types';
-import { IdentifierToMock, MocksContainer } from './mocks-container';
+import { IdentifierToDependency, DependencyContainer } from './dependency-container';
 import { normalizeIdentifier } from '../normalize-identifier.static';
-import { AutomockErrorCode } from '@automock/common';
+import { omit } from 'lodash';
 
 export class UnitBuilder {
   public static create<TClass>(
     mockFn: MockFunction<unknown>,
-    unitMocker: UnitMocker,
-    adapter: AutomockDependenciesAdapter,
-    logger: Console
+    unitMocker: UnitMocker
   ): (targetClass: Type<TClass>) => TestBedBuilder<TClass> {
     return (targetClass: Type<TClass>): TestBedBuilder<TClass> => {
-      const identifiersToMocks: IdentifierToMock[] = [];
-      const dependenciesContainer = adapter.inspect(targetClass);
+      const identifiersToMock: IdentifierToDependency[] = [];
+      const classesToExpose: Type[] = [];
 
       return {
         mock<TDependency>(
           identifier: InjectableIdentifier,
           metadata?: IdentifierMetadata
         ): MockOverride<TDependency, TClass> {
-          const dependency = dependenciesContainer.resolve<never>(identifier, metadata);
-
-          if (!dependency) {
-            logger.warn(mockDependencyNotFoundMessage(identifier, metadata));
-          }
-
           return {
-            using: (mockImplementationOrValue: DeepPartial<TDependency> | ConstantValue) => {
+            using: (
+              mockImplementationOrValue: DeepPartial<TDependency> | ConstantValue
+            ): Omit<TestBedBuilder<TClass>, 'expose'> => {
               if (isConstantValue(mockImplementationOrValue)) {
-                identifiersToMocks.push([
-                  normalizeIdentifier(identifier, metadata),
+                identifiersToMock.push([
+                  normalizeIdentifier(identifier, metadata as never),
                   mockImplementationOrValue as ConstantValue,
                 ]);
 
-                return this;
+                return omit<TestBedBuilder<TClass>, 'expose'>(this, 'expose');
               }
 
-              identifiersToMocks.push([
-                normalizeIdentifier(identifier, metadata),
+              identifiersToMock.push([
+                normalizeIdentifier(identifier, metadata as never),
                 mockFn(mockImplementationOrValue) as StubbedInstance<TDependency>,
               ]);
 
-              return this;
+              return omit<TestBedBuilder<TClass>, 'expose'>(this, 'expose');
             },
           };
         },
+        expose(unit: Type): TestBedBuilder<TClass> {
+          classesToExpose.push(unit);
+          return this;
+        },
         compile(): UnitTestBed<TClass> {
-          const { container, instance } = unitMocker.applyMocksToUnit<TClass>(targetClass)(
-            new MocksContainer(identifiersToMocks),
-            dependenciesContainer
+          const { container, instance } = unitMocker.constructUnit<TClass>(
+            targetClass,
+            classesToExpose,
+            new DependencyContainer(identifiersToMock)
           );
 
           return {
@@ -79,21 +73,4 @@ function isConstantValue(value: unknown): value is ConstantValue {
     typeof value === 'symbol' ||
     value === null
   );
-}
-
-function mockDependencyNotFoundMessage(
-  identifier: Type | string | symbol,
-  metadata: IdentifierMetadata | undefined
-): string {
-  const identifierName =
-    typeof identifier === 'string' || typeof identifier === 'symbol'
-      ? String(identifier)
-      : identifier.name;
-  const metadataMsg = metadata ? `, with metadata [${JSON.stringify(metadata)}]` : '';
-  const details = identifierName + metadataMsg;
-
-  return `Automock Warning (${AutomockErrorCode.IDENTIFIER_NOT_FOUND}): The provided dependency identifier '${details}' does not match any
-existing dependencies in the current testing context. Please review your identifier and
-ensure it corresponds to the expected configuration.
-Refer to the docs for further information: https://automock.dev/docs`;
 }

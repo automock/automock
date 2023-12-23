@@ -1,5 +1,5 @@
 import { UnitReference } from './unit-reference';
-import { MocksContainer } from './mocks-container';
+import { DependencyContainer } from './dependency-container';
 import { ConstantValue, InjectableIdentifier } from '@automock/common';
 import { StubbedInstance } from '@automock/types';
 
@@ -15,7 +15,7 @@ describe('Unit Reference Unit Spec', () => {
   let unitReference: UnitReference;
 
   beforeAll(() => {
-    const mocksContainer = new MocksContainer([
+    const mocksContainer = new DependencyContainer([
       // Types
       [{ identifier: DependencyOne }, DependencyOneStubbed],
       [{ identifier: 'DEPENDENCY_ONE' }, DependencyOneStubbed],
@@ -24,8 +24,14 @@ describe('Unit Reference Unit Spec', () => {
       [{ identifier: 'CONSTANT_VALUE' }, ['1', '2', '3']],
       [{ identifier: ConstantValueSymbol }, [1, 2, 3]],
       // With Metadata
-      [{ identifier: 'DEPENDENCY_TWO', metadata: { dependency: 'two' } }, DependencyTwoStubbed],
-      [{ identifier: DependencyTwoSymbol, metadata: { dependency: 'two' } }, DependencyTwoStubbed],
+      [
+        { identifier: 'DEPENDENCY_TWO', metadata: { dependency: 'two' } as never },
+        DependencyTwoStubbed,
+      ],
+      [
+        { identifier: DependencyTwoSymbol, metadata: { dependency: 'two' } as never },
+        DependencyTwoStubbed,
+      ],
     ]);
 
     unitReference = new UnitReference(mocksContainer);
