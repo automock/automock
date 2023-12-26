@@ -1,7 +1,7 @@
 import { Type, MockFunction } from '@automock/types';
-import { AutomockDependenciesAdapter, WithMetadata } from '@automock/common';
+import { AutomockDependenciesAdapter } from '@automock/common';
 import { IdentifierToDependency, DependencyContainer } from './dependency-container';
-import { DependencyResolver } from './dependencies-resolver.static';
+import { DependencyResolver } from './dependencies-resolver';
 
 export interface MockedUnit<TClass> {
   container: DependencyContainer;
@@ -20,17 +20,17 @@ export class UnitMocker {
     classesToExpose: Type[],
     mockContainer: DependencyContainer
   ): MockedUnit<TClass> {
-    const dependencyResolver = DependencyResolver(
+    const dependencyResolver = new DependencyResolver(
       classesToExpose,
       mockContainer,
       this.adapter,
       this.mockFunction
     );
 
-    const instance = dependencyResolver.instantiateClass(targetClass);
+    const instance = dependencyResolver.instantiateClass(targetClass, undefined);
 
-    const identifierToDependency = Array.from(dependencyResolver.resolvedDependencies.entries())
-      .map(([identifier, value]) => [{ identifier }, value] as IdentifierToDependency)
+    const identifierToDependency = Array.from(dependencyResolver.getResolvedDependencies())
+      .map(([identifier, value]) => [identifier, value] as IdentifierToDependency)
       .filter(([{ identifier }]) => identifier !== targetClass);
 
     return {

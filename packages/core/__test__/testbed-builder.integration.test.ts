@@ -51,7 +51,7 @@ describe('UserService TestBed Builder Integration Test', () => {
       expect(userServiceAsIfItWasUnderTest).toBeInstanceOf(UserService);
     });
 
-    it('should invoke the Logger.log message on instantiation os the UserService', () => {
+    it('should log messages using the overridden Logger.log method when UserService is initialized', () => {
       const mockedLogger: StubbedInstance<Logger> = unitRef.get<Logger>(Logger);
       expect(mockedLogger.log).toHaveBeenNthCalledWith(1, 'Just logging a message');
       expect(mockedLogger.log).toHaveBeenNthCalledWith(2, 'UserService initialized');
@@ -59,7 +59,7 @@ describe('UserService TestBed Builder Integration Test', () => {
 
     it('should create a user successfully using UserDal.createUser and mock dependencies', () => {
       // Retrieve the UserDal instance from unitRef
-      const userDal: UserDal = unitRef.get(UserDal);
+      const userDal: UserDal = unitRef.pick(UserDal);
 
       // Create a mock user object for testing
       const mockUser = {
@@ -68,16 +68,7 @@ describe('UserService TestBed Builder Integration Test', () => {
       };
 
       // Mock the behavior of UserVerificationService if necessary
-      const userVerService: jest.Mocked<UserVerificationService> =
-        unitRef.get(UserVerificationService);
-
-      //
-
-      // userVerificationServiceMock.verify.mockReturnValue(true); // Assuming the user is valid
-
-      // Mock the behavior of DatabaseService if necessary
-      // const databaseServiceMock = unitRef.get<DatabaseService>(DatabaseService);
-      // Mock any relevant methods of DatabaseService, e.g., save, insert
+      const userVerService = unitRef.get(UserVerificationService);
 
       userVerService.verify.mockReturnValue(true);
 
@@ -86,7 +77,6 @@ describe('UserService TestBed Builder Integration Test', () => {
 
       // Assert that the user is created successfully
       expect(createdUser).toEqual(mockUser);
-      // Additional assertions can be added here to verify the interaction with the mocked dependencies
     });
   });
 });
