@@ -1,4 +1,5 @@
-import { TestBedBuilder, UnitReference, UnitTestBed } from '../src';
+import { StubbedInstance } from '@automock/types';
+import { TestBedBuilder, UnitReference } from '../src';
 import { UnitBuilder } from '../src/services/testbed-builder';
 import { UnitMocker } from '../src/services/unit-mocker';
 import { FakeAdapter } from './assets/integration.assets';
@@ -10,73 +11,111 @@ import {
   UserDal,
   UserService,
   UserVerificationService,
-  HttpClient,
-  UserDigestService,
   ApiService,
   DatabaseService,
+  User,
 } from './injectables-registry.fixture';
-import { StubbedInstance } from '@automock/types';
-import Mocked = jest.Mocked;
 
 describe('UserService TestBed Builder Integration Test', () => {
-  let unitBuilder: TestBedBuilder<UserService>;
   const loggerMock = { warn: jest.fn() } as Partial<Console>;
+
+  let unitBuilder: TestBedBuilder<UserService>;
+  let userServiceAsIfItWasUnderTest: UserService;
+  let unitRef: UnitReference;
 
   beforeAll(() => {
     unitBuilder = UnitBuilder.create<UserService>(
       mock,
       new UnitMocker(mock, loggerMock as Console, FakeAdapter)
     )(UserService);
+
+    const testBed = unitBuilder
+      .integrate(UserApiService)
+      .integrate(UserDal)
+      .integrate(DatabaseService)
+      .mock(Logger)
+      .using({ log: jest.fn().mockReturnValue('overridden') })
+      .compile();
+
+    userServiceAsIfItWasUnderTest = testBed.unit;
+    unitRef = testBed.unitRef;
   });
 
-  describe('creating a testbed builder with some mock overrides', () => {
-    let userServiceAsIfItWasUnderTest: UserService;
-    let unitRef: UnitReference;
+  it('should instantiate UserService with all dependencies properly resolved', () => {
+    expect(userServiceAsIfItWasUnderTest).toBeInstanceOf(UserService);
+  });
 
-    beforeAll(() => {
-      const testBed = unitBuilder
-        .expose(UserApiService)
-        .expose(UserDal)
-        .mock(Logger)
-        .using({ log: jest.fn().mockReturnValue('overridden') })
-        .mock<Repository>('Repository')
-        .using({ find: () => ['overridden'] })
-        .compile();
+  it('should log messages using the overridden Logger.log method when UserService is initialized', () => {
+    const mockedLogger: StubbedInstance<Logger> = unitRef.get<Logger>(Logger);
 
-      userServiceAsIfItWasUnderTest = testBed.unit;
-      unitRef = testBed.unitRef;
-    });
+    expect(mockedLogger.log).toHaveBeenNthCalledWith(1, 'Just logging a message');
+    expect(mockedLogger.log).toHaveBeenNthCalledWith(2, 'UserService initialized');
+  });
 
-    it('should instantiate UserService with all dependencies properly resolved', () => {
-      expect(userServiceAsIfItWasUnderTest).toBeInstanceOf(UserService);
-    });
+  it('should throw an error indicating the dependencies cannot be retrieved as they were exposed in the testbed', () => {
+    expect(() => unitRef.get(DatabaseService)).toThrowError();
+    expect(() => unitRef.get(UserDal)).toThrowError();
+    expect(() => unitRef.get(UserApiService)).toThrowError();
+  });
 
-    it('should log messages using the overridden Logger.log method when UserService is initialized', () => {
-      const mockedLogger: StubbedInstance<Logger> = unitRef.get<Logger>(Logger);
-      expect(mockedLogger.log).toHaveBeenNthCalledWith(1, 'Just logging a message');
-      expect(mockedLogger.log).toHaveBeenNthCalledWith(2, 'UserService initialized');
-    });
+  describe('creating a user with UserService', () => {
+    let repository: StubbedInstance<Repository>;
+    let userVerService: jest.Mocked<UserVerificationService>;
+    let createdUser: User;
 
-    it('should create a user successfully using UserDal.createUser and mock dependencies', () => {
-      // Retrieve the UserDal instance from unitRef
-      const userDal: UserDal = unitRef.pick(UserDal);
+    const userFixture = { name: 'Test User', email: 'test@example.com' } as const;
 
-      // Create a mock user object for testing
-      const mockUser = {
-        name: 'Test User',
-        email: 'test@example.com',
-      };
+    beforeAll(async () => {
+      userVerService = unitRef.get(
+        UserVerificationService
+      ) as unknown as jest.Mocked<UserVerificationService>;
 
-      // Mock the behavior of UserVerificationService if necessary
-      const userVerService = unitRef.get(UserVerificationService);
+      repository = unitRef.get<Repository>('Repository');
 
       userVerService.verify.mockReturnValue(true);
+      createdUser = await userServiceAsIfItWasUnderTest.create(userFixture);
+    });
 
-      // Call createUser with the mock user
-      const createdUser = userDal.createUser(mockUser);
+    it('should call the verification service to verify the user data because it is mocked', () => {
+      expect(userVerService.verify).toHaveBeenCalledWith(userFixture);
+    });
 
-      // Assert that the user is created successfully
-      expect(createdUser).toEqual(mockUser);
+    it('should go through the repository because the database service is exposed', () => {
+      expect(repository.create).toHaveBeenCalledWith(JSON.stringify(userFixture));
+    });
+
+    it('should successfully create and return the same user', () => {
+      expect(createdUser).toEqual(userFixture);
+    });
+  });
+
+  describe('getting a user info with UserService', () => {
+    const userId = '12345';
+
+    let logger: jest.Mocked<Logger>;
+    let apiService: jest.Mocked<ApiService>;
+    let result: string;
+
+    beforeAll(async () => {
+      logger = unitRef.get(Logger) as unknown as jest.Mocked<Logger>;
+      apiService = unitRef.get(ApiService) as unknown as jest.Mocked<ApiService>;
+
+      apiService.fetchData.mockResolvedValue('Data from API');
+
+      result = await userServiceAsIfItWasUnderTest.getUserInfo(userId);
+    });
+
+    it('should not call the logger as the ApiService is mocked and not exposed', () => {
+      expect(logger.log).not.toHaveBeenCalledWith('fetching data');
+    });
+
+    it('should call the mocked ApiService to fetch the user data', () => {
+      const endpointUrl = `https://api.example.com/users/${userId}`;
+      expect(apiService.fetchData).toHaveBeenCalledWith(endpointUrl);
+    });
+
+    it('should go through UserApiService because it is exposed and return the data', () => {
+      expect(result).toEqual('User Data: Data from API');
     });
   });
 });

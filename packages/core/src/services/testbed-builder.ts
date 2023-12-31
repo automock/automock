@@ -24,14 +24,14 @@ export class UnitBuilder {
           return {
             using: (
               mockImplementationOrValue: DeepPartial<TDependency> | ConstantValue
-            ): Omit<TestBedBuilder<TClass>, 'expose'> => {
+            ): Omit<TestBedBuilder<TClass>, 'integrate'> => {
               if (isConstantValue(mockImplementationOrValue)) {
                 identifiersToMock.push([
                   normalizeIdentifier(identifier, metadata as never),
                   mockImplementationOrValue as ConstantValue,
                 ]);
 
-                return omit<TestBedBuilder<TClass>, 'expose'>(this, 'expose');
+                return omit<TestBedBuilder<TClass>, 'integrate'>(this, 'integrate');
               }
 
               identifiersToMock.push([
@@ -39,11 +39,11 @@ export class UnitBuilder {
                 mockFn(mockImplementationOrValue) as StubbedInstance<TDependency>,
               ]);
 
-              return omit<TestBedBuilder<TClass>, 'expose'>(this, 'expose');
+              return omit<TestBedBuilder<TClass>, 'integrate'>(this, 'integrate');
             },
           };
         },
-        expose(unit: Type): TestBedBuilder<TClass> {
+        integrate(unit: Type): TestBedBuilder<TClass> {
           classesToExpose.push(unit);
           return this;
         },
@@ -56,7 +56,7 @@ export class UnitBuilder {
 
           return {
             unit: instance,
-            unitRef: new UnitReference(container),
+            unitRef: new UnitReference(container, classesToExpose),
           };
         },
       };

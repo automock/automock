@@ -105,7 +105,11 @@ export class DependencyResolver {
     return instance;
   }
 
-  getResolvedDependencies() {
+  public getResolvedDependencies() {
     return this.dependencyMap.entries();
+  }
+
+  public getDependencyMap() {
+    return this.dependencyMap;
   }
 }

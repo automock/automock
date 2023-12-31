@@ -3,6 +3,7 @@ import {
   AutomockDependenciesAdapter,
   ClassInjectable,
   IdentifierMetadata,
+  InjectablesRegistry,
   WithMetadata,
 } from '@automock/common';
 import { Type } from '@automock/types';
@@ -26,7 +27,7 @@ import {
   UserService,
 } from '../injectables-registry.fixture';
 
-const registryToClass = new Map([
+const registryToClass: Map<Type, InjectablesRegistry> = new Map<Type, InjectablesRegistry>([
   [HttpClient, emptyRegistry],
   [Logger, emptyRegistry],
   [UserVerificationService, emptyRegistry],

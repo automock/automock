@@ -6,6 +6,8 @@ import { StubbedInstance } from '@automock/types';
 class DependencyOne {}
 class DependencyOneStubbed {}
 class DependencyTwoStubbed {}
+class RealDependencyOne {}
+class RealDependencyTwo {}
 
 const DependencyOneSymbol = Symbol('DependencyOneSymbol');
 const DependencyTwoSymbol = Symbol('DependencyTwoSymbol');
@@ -34,7 +36,11 @@ describe('Unit Reference Unit Spec', () => {
       ],
     ]);
 
-    unitReference = new UnitReference(mocksContainer);
+    unitReference = new UnitReference(mocksContainer, [RealDependencyOne, RealDependencyTwo]);
+  });
+
+  it('should throw an error indicating the dependency cannot be retrieved because it is exposed', () => {
+    expect(() => unitReference.get(RealDependencyOne)).toThrowError();
   });
 
   it.each([

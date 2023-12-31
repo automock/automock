@@ -41,30 +41,6 @@ export interface UnitReference {
   ): StubbedInstance<TDependency>;
 
   /**
-   * Retrieves a reference to the real instance object of a dependency corresponding to its type
-   * identifier.
-   * This method is useful for retrieving dependencies that have not been mocked.
-   *
-   * @since 2.2.0
-   * @template TDependency The type of the dependency being retrieved.
-   * @param unit The type representing the dependency.
-   * @returns TDependency The type corresponding to the provided type identifier.
-   */
-  pick<TDependency>(unit: Type<TDependency>): TDependency;
-
-  /**
-   * Retrieves a reference to a real instance object of a dependency corresponding to its
-   * type identifier and metadata object.
-   *
-   * @since 2.2.0
-   * @template TDependency The type of the dependency being retrieved.
-   * @param unit The type representing the dependency.
-   * @param identifierMetadata A metadata object that corresponds to the type identifier.
-   * @returns TDependency The typr corresponding to the provided symbol-based token.
-   */
-  pick<TDependency>(unit: Type<TDependency>, identifierMetadata: IdentifierMetadata): TDependency;
-
-  /**
    * Retrieves a reference to the mocked object of a dependency corresponding to a string-based token.
    *
    * @since 2.0.0
@@ -171,12 +147,20 @@ export interface UnitReference {
 }
 
 export class UnitReference {
-  public constructor(private readonly mocksContainer: DependencyContainer) {}
+  public constructor(
+    private readonly mocksContainer: DependencyContainer,
+    private readonly instances: Type[]
+  ) {}
 
   public get<TDependency>(
     identifier: InjectableIdentifier,
     metadata?: IdentifierMetadata
-  ): StubbedInstance<TDependency> | TDependency | ConstantValue {
+  ): StubbedInstance<TDependency> | ConstantValue {
+    if (typeof identifier === 'function' && this.instances.includes(identifier)) {
+      const message = referenceDependencyNotFoundError(identifier, metadata);
+      throw new IdentifierNotFoundError(message);
+    }
+
     const dependency = this.mocksContainer.resolve<TDependency>(identifier, metadata);
 
     if (!dependency) {
@@ -184,7 +168,7 @@ export class UnitReference {
       throw new IdentifierNotFoundError(message);
     }
 
-    return dependency;
+    return dependency as StubbedInstance<TDependency> | ConstantValue;
   }
 }
 

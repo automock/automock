@@ -1,8 +1,7 @@
 import { ClassInjectable, InjectablesRegistry } from '@automock/common';
 
 export class HttpClient {
-  public get(url: string): string {
-    // Simulates an HTTP GET request.
+  public async get(url: string): Promise<string> {
     return `Response from ${url}`;
   }
 }
@@ -25,7 +24,8 @@ export const FakeInject =
     identifier;
 
 export interface Repository {
-  find(query: string): string[];
+  find(query: string): Promise<string[]>;
+  create(data: string): Promise<void>;
 }
 
 export class UserVerificationService {
@@ -41,8 +41,8 @@ export class ApiService {
     private readonly logger: Logger
   ) {}
 
-  public fetchData(endpoint: string): string {
-    this.logger.log(`Fetching data from ${endpoint}`);
+  public async fetchData(endpoint: string): Promise<string> {
+    this.logger.log('fetching data');
     return this.httpClient.get(endpoint);
   }
 }
@@ -50,8 +50,12 @@ export class ApiService {
 export class DatabaseService {
   public constructor(@FakeInject('Repository') private readonly repository: Repository) {}
 
-  public findData(query: string): string[] {
+  public async findData(query: string): Promise<string[]> {
     return this.repository.find(query);
+  }
+
+  public async saveData(data: string): Promise<void> {
+    return this.repository.create(data);
   }
 }
 
@@ -71,9 +75,8 @@ export class UserApiService {
     private readonly userDigestService: UserDigestService
   ) {}
 
-  public getUserData(userId: string): string {
-    // Simulates fetching user data from an API.
-    const data = this.apiService.fetchData(`http://api.example.com/users/${userId}`);
+  public async getUserData(userId: string): Promise<string> {
+    const data = await this.apiService.fetchData(`https://api.example.com/users/${userId}`);
     return `User Data: ${data}`;
   }
 
@@ -89,9 +92,9 @@ export class UserDal {
     private readonly userDigestService: UserDigestService
   ) {}
 
-  public createUser(user: User): User {
+  public async createUser(user: User): Promise<User> {
     if (this.userVerificationService.verify(user)) {
-      // Logic to create a user in the database.
+      await this.databaseService.saveData(JSON.stringify(user));
       return user;
     }
 
@@ -119,12 +122,12 @@ export class UserService {
     this.logger.log('UserService initialized');
   }
 
-  public create(user: User): User {
+  public async create(user: User): Promise<User> {
     this.logger.log(`Creating user: ${user.name}`);
     return this.userDal.createUser(user);
   }
 
-  public getUserInfo(userId: string): string {
+  public async getUserInfo(userId: string): Promise<string> {
     return this.userApiService.getUserData(userId);
   }
 }
