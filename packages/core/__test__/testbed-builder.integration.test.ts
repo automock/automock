@@ -1,4 +1,4 @@
-import { StubbedInstance } from '@automock/types';
+import { StubbedInstance } from '@suites/types';
 import { TestBedBuilder, UnitReference } from '../src';
 import { UnitBuilder } from '../src/services/testbed-builder';
 import { UnitMocker } from '../src/services/unit-mocker';

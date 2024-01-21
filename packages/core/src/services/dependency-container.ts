@@ -4,8 +4,8 @@ import {
   ConstantValue,
   IdentifierMetadata,
   InjectableIdentifier,
-} from '@automock/common';
-import { StubbedInstance, Type } from '@automock/types';
+} from '@suites/common';
+import { StubbedInstance, Type } from '@suites/types';
 
 export type IdentifierToDependency = [
   Pick<ClassInjectable, 'identifier'> & { metadata?: never },

@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="200" src="https://raw.githubusercontent.com/automock/automock/master/logo.png" alt="Logo" />
+  <img width="200" src="https://raw.githubusercontent.com/suites-dev/suites/master/logo.png" alt="Logo" />
 </p>
 
 <h1 align="center">Automock</h1>
@@ -9,18 +9,16 @@
 generation, enabling developers to create efficient test suites and enhance their overall testing experience.</strong>
 </p>
 
-[![npm downloads](https://img.shields.io/npm/dm/@automock/jest.svg?label=%40automock%2Fjest)](https://npmjs.org/package/@automock/jest "View this project on npm")
-[![npm downloads](https://img.shields.io/npm/dm/@automock/sinon.svg?label=%40automock%2Fsinon)](https://npmjs.org/package/@automock/sinon "View this project on npm")
-[![Codecov Coverage](https://img.shields.io/codecov/c/github/automock/automock/master.svg?style=flat-square)](https://codecov.io/gh/automock/automock)
-[![ci](https://github.com/automock/automock/actions/workflows/set-coverage.yml/badge.svg?branch=master)](https://github.com/automock/automock/actions)
+[![Codecov Coverage](https://img.shields.io/codecov/c/github/suites-dev/suites/master.svg?style=flat-square)](https://codecov.io/gh/suites-dev/suites)
+[![ci](https://github.com/suites-dev/suites/actions/workflows/set-coverage.yml/badge.svg?branch=master)](https://github.com/suites-dev/suites/actions)
+[![e2e](https://github.com/suites-dev/suites/actions/workflows/e2e.yml/badge.svg?branch=master)](https://github.com/suites-dev/suites/actions)
+[![lerna](https://img.shields.io/badge/maintained%20with-lerna-cc00ff.svg)](https://lerna.js.org/)
+
+[![npm downloads](https://img.shields.io/npm/dm/@suites/jest.svg?label=%40automock%2Fjest)](https://npmjs.org/package/@suites/jest "View this project on npm")
+[![npm downloads](https://img.shields.io/npm/dm/@suites/sinon.svg?label=%40automock%2Fsinon)](https://npmjs.org/package/@suites/sinon "View this project on npm")
+[![npm downloads](https://img.shields.io/npm/dm/@suites/core.svg?label=%40automock%2Fcore)](https://npmjs.org/package/@suites/core "View this project on npm")
 
 [↗️ Documentation](https://automock.dev/docs) &nbsp;&nbsp; [↗️ API Reference](https://automock.dev/api-reference)
-
-<p>
-<strong>If you find Automock useful, we would be grateful if you could give us a star 🤩</strong><br />
-Every star we receive is greatly appreciated and makes a meaningful impact on our self-funded project.
-It's a valuable contribution that helps us grow and improve. Thanks a lot for your support! 🌟 
-</p>
 
 ## Core Features
 
@@ -56,21 +54,24 @@ export class UserService {
 
 Let's create a unit test for this class using Automock:
 ```typescript
-import { TestBed } from '@automock/jest';
+import { TestBed } from '@suites/jest';
 import { Database, UserService } from './user.service'; 
 
 describe('User Service Unit Spec', () => {
-  let userService: UserService; // << Declare the "unit under test"
-  let database: jest.Mocked<Database>; // Declare a mocked dependency
+  let userService: UserService; // 🧪 Declare the unit under test
+  let database: jest.Mocked<Database>; // 🎭 Declare a mocked dependency
 
   beforeAll(() => {
-    const { unit, unitRef } = TestBed.create(UserService).compile(); // << Automock's stuff
+    // 🚀 Create an isolated test env for the unit (under test) + auto generated mock objects
+    const { unit, unitRef } = TestBed.create(UserService).compile(); 
 
     userService = unit;
-    database = unitRef.get(Database); // << Retreive a dependency from the unit/class 
+
+    // 🔍 Retreive a dependency (mock) from the unit
+    database = unitRef.get(Database);
   });
 
-  // All dependencies are mocked before the test is written 🚀
+  // ✅ Test test test
   test('should return users from the database', async () => {
     const mockUsers: User[] = [{ id: 1, name: 'John' }, { id: 2, name: 'Jane' }];
     database.getUsers.mockResolvedValue(mockUsers);
@@ -88,17 +89,8 @@ generated for its dependencies. During the test, we have direct access to the au
 the `Database` dependency (database). By stubbing the `getUsers()` method of the database mock object, we can define
 its behavior and make sure it resolves with a specific set of mock users.
 
-**Automock improves upon the existing unit testing procedures of DI frameworks by creating a virtual DI container. There
-is an array of advantages to this change:**
-
-* **Speed:** By simulating the actual DI container in the testing environment, Automock speeds up execution times.
-
-* **Efficiency:** Developers are therefore able to focus on writing the test logic instead of grappling with the
-  complexities of test setup.
-
-* **Isolation:** Each test runs independently with mock implementations automatically provided, creating a
-  streamlined and interference-free testing environment.
-
+There is a lot more that Automock does rather than just generating mock objects, we recommend you to read the
+[Getting Started](https://automock.dev/docs/getting-started) guide to learn more.
 
 <p align="right"><a href="https://automock.dev/docs/getting-started/examples">↗️ For a full Step-by-Step example</a></p>
 
@@ -109,38 +101,16 @@ Automock package for your chosen testing framework, and the corresponding adapte
 
 1. Install the corresponding package for your testing framework:
 
-```bash
-$ npm i -D @automock/jest
-```
+**Jest:** `$ npm i -D @suites/jest` \
+**Sinon:** `$ npm i -D @suites/sinon` \
+**Vitest:** `$ npm i -D @suites/vitest`
 
-For **Sinon**:
+2. And for your DI framework, install the appropriate Automock adapter:
 
-```bash
-$ npm i -D @automock/sinon
-```
-
-2. And for your DI framework, install the appropriate Automock adapter (as a dev dependency):
-
-| DI Framework | Package Name                   |
-|--------------|--------------------------------|
-| NestJS       | `@automock/adapters.nestjs`    |
-| Inversify    | `@automock/adapters.inversify` |
+**NestJS:** `$ npm i -D @suites/nestjs` \
+**InversifyJS:** `$ npm i -D @suites/inversify`
 
 No further configuration is required.
-
-## :arrows_counterclockwise: Migrating from v1.x to v2.0
-
-The NestJS adapter came pre-bundled in v1.x. In v2.0, you'll need to install it manually:
-
-```bash
-$ npm i -D @automock/adapters.nestjs
-```
-
-> For a detailed list of changes read Automock's [v2.0 Release Notes](https://github.com/automock/automock/releases/tag/v2.0.0).
-
-That's about it. :smile_cat:
-
-<p align="right"><a href="https://automock.dev/docs/migrating">↗️ Migration guide</a></p>
 
 ## :scroll: License
 

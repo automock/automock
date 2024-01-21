@@ -1,5 +1,5 @@
-import { DeepPartial, Type, MockFunction, StubbedInstance } from '@automock/types';
-import { IdentifierMetadata, ConstantValue, InjectableIdentifier } from '@automock/common';
+import { DeepPartial, Type, MockFunction, StubbedInstance } from '@suites/types';
+import { AutomockErrorCode, IdentifierMetadata, ConstantValue, InjectableIdentifier } from '@suites/common';
 import { UnitReference } from './unit-reference';
 import { UnitMocker } from './unit-mocker';
 import { MockOverride, TestBedBuilder, UnitTestBed } from '../public-types';

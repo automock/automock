@@ -1,5 +1,5 @@
-import { Type, MockFunction } from '@automock/types';
-import { AutomockDependenciesAdapter } from '@automock/common';
+import { Type, MockFunction } from '@suites/types';
+import { AutomockDependenciesAdapter } from '@suites/common';
 import { IdentifierToDependency, DependencyContainer } from './dependency-container';
 import { DependencyResolver } from './dependencies-resolver';
 
