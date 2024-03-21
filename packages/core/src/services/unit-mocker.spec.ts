@@ -5,7 +5,8 @@ import {
   WithMetadata,
 } from '@suites/common';
 import { MockedUnit, UnitMocker } from './unit-mocker';
-import { IdentifierToMock, MocksContainer } from './mocks-container';
+import { IdentifierToDependency, DependencyContainer } from './dependency-container';
+import * as console from 'console';
 
 class ArbitraryClassOne {}
 class ArbitraryClassTwo {}
@@ -19,11 +20,14 @@ class ClassFromToken {}
 class StubbedClass {}
 
 class DummyClass {
-  public arbitraryThree: ArbitraryClassThree;
-  public arbitraryFour: ArbitraryClassFour;
-  public arbitraryProperty: string;
-  public withMetadata: StubbedClass;
-  public withMetadataSecond: StubbedClass;
+  public readonly arbitraryThree: ArbitraryClassThree;
+
+  public constructor(
+    public readonly arbitraryFour: ArbitraryClassFour,
+    public readonly arbitraryProperty: string,
+    public readonly withMetadata: StubbedClass,
+    public readonly withMetadataSecond: StubbedClass
+  ) {}
 }
 
 const MockedFromBuilder = Symbol.for('__MOCKED__');
@@ -33,93 +37,96 @@ describe('Unit Mocker Unit Spec', () => {
   let result: MockedUnit<DummyClass>;
 
   const mockFunctionStub = () => MockedFromBuilder;
+  const injectablesRegistry: InjectablesRegistry = {
+    list(): ClassInjectable[] {
+      return [
+        {
+          type: 'PROPERTY',
+          property: { key: 'arbitraryThree' },
+          identifier: ArbitraryClassThree,
+          value: ArbitraryClassThree,
+        },
+        { identifier: ArbitraryClassOne, value: ArbitraryClassOne, type: 'PARAM' },
+        // We put the same class twice to test that the mocker, it is not a mistake
+        { identifier: ArbitraryClassTwo, value: ArbitraryClassTwo, type: 'PARAM' },
+        { identifier: ArbitraryClassTwo, value: ArbitraryClassTwo, type: 'PARAM' },
+        { identifier: ArbitraryClassFive, value: UndefinedDependency, type: 'PARAM' },
+        {
+          identifier: 'ArbitraryClassSix',
+          metadata: { metadataKey: 'value' },
+          value: ArbitraryClassSix,
+          type: 'PARAM',
+        } as WithMetadata<never>,
+        { identifier: 'TOKEN_WITH_UNDEFINED', value: UndefinedDependency, type: 'PARAM' },
+        { identifier: 'TOKEN', value: ClassFromToken, type: 'PARAM' },
+        {
+          type: 'PROPERTY',
+          property: { key: 'withMetadata' },
+          metadata: { key: 'value' },
+          identifier: ArbitraryClassSeven,
+          value: ArbitraryClassSeven,
+        } as ClassInjectable,
+        {
+          type: 'PROPERTY',
+          property: { key: 'withMetadataSecond' },
+          metadata: { anotherKey: 'anotherValue' },
+          identifier: 'TOKEN_METADATA',
+          value: ArbitraryClassSeven,
+        } as ClassInjectable,
+        {
+          type: 'PROPERTY',
+          property: { key: 'arbitraryFour' },
+          identifier: ArbitraryClassFour,
+          value: ArbitraryClassFour,
+        },
+        {
+          type: 'PROPERTY',
+          property: { key: 'arbitraryProperty' },
+          identifier: 'ANOTHER_TOKEN',
+          value: String,
+        },
+      ];
+    },
+    resolve: () => undefined,
+  };
 
   beforeAll(() => {
-    underTest = new UnitMocker(mockFunctionStub);
+    underTest = new UnitMocker(mockFunctionStub, console, {
+      inspect: () => injectablesRegistry,
+    });
   });
 
   describe('given that the adapter returns container with the following dependencies', () => {
-    const dependenciesContainer: InjectablesRegistry = {
-      list(): ClassInjectable[] {
-        return [
-          { identifier: ArbitraryClassOne, value: ArbitraryClassOne, type: 'PARAM' },
-          // We put the same class twice to test that the mocker, it is not a mistake
-          { identifier: ArbitraryClassTwo, value: ArbitraryClassTwo, type: 'PARAM' },
-          { identifier: ArbitraryClassTwo, value: ArbitraryClassTwo, type: 'PARAM' },
-          { identifier: ArbitraryClassFive, value: UndefinedDependency, type: 'PARAM' },
-          {
-            identifier: 'ArbitraryClassSix',
-            metadata: { metadataKey: 'value' },
-            value: ArbitraryClassSix,
-            type: 'PARAM',
-          } as WithMetadata<never>,
-          { identifier: 'TOKEN_WITH_UNDEFINED', value: UndefinedDependency, type: 'PARAM' },
-          { identifier: 'TOKEN', value: ClassFromToken, type: 'PARAM' },
-          {
-            type: 'PROPERTY',
-            property: { key: 'arbitraryThree' },
-            identifier: ArbitraryClassThree,
-            value: ArbitraryClassThree,
-          },
-          {
-            type: 'PROPERTY',
-            property: { key: 'withMetadata' },
-            metadata: { key: 'value' },
-            identifier: ArbitraryClassSeven,
-            value: ArbitraryClassSeven,
-          } as ClassInjectable,
-          {
-            type: 'PROPERTY',
-            property: { key: 'withMetadataSecond' },
-            metadata: { anotherKey: 'anotherValue' },
-            identifier: 'TOKEN_METADATA',
-            value: ArbitraryClassSeven,
-          } as ClassInjectable,
-          {
-            type: 'PROPERTY',
-            property: { key: 'arbitraryFour' },
-            identifier: ArbitraryClassFour,
-            value: ArbitraryClassFour,
-          },
-          {
-            type: 'PROPERTY',
-            property: { key: 'arbitraryProperty' },
-            identifier: 'ANOTHER_TOKEN',
-            value: String,
-          },
-        ];
-      },
-      resolve: () => undefined,
-    };
-
     describe('and given there are some already mocked injectables from advanced in the mocks container', () => {
-      const mocksContainer = new MocksContainer([
+      const mocksContainer = new DependencyContainer([
         [{ identifier: ArbitraryClassTwo }, StubbedClass],
         [{ identifier: ArbitraryClassFour }, ArbitraryClassFourMockedLike],
-        [{ identifier: ArbitraryClassSeven, metadata: { key: 'value' } }, StubbedClass],
+        [{ identifier: ArbitraryClassSeven, metadata: { key: 'value' } as never }, StubbedClass],
       ]);
 
       describe('when applying all the mocks on the target unit, including the already mocked', () => {
         beforeAll(() => {
-          result = underTest.applyMocksToUnit(DummyClass)(mocksContainer, dependenciesContainer);
+          result = underTest.constructUnit(DummyClass, [], mocksContainer);
         });
 
         it('should return container that lists all the dependencies together, mocked from the builder or from advanced', () => {
-          expect(result.container.list()).toEqual<IdentifierToMock[]>([
+          expect(result.container.list()).toEqual<IdentifierToDependency[]>([
             [{ identifier: ArbitraryClassOne }, MockedFromBuilder],
-            [{ identifier: ArbitraryClassTwo }, StubbedClass],
             [{ identifier: ArbitraryClassTwo }, StubbedClass],
             [{ identifier: ArbitraryClassFive }, MockedFromBuilder],
             [
-              { identifier: 'ArbitraryClassSix', metadata: { metadataKey: 'value' } },
+              { identifier: 'ArbitraryClassSix', metadata: { metadataKey: 'value' } as never },
               MockedFromBuilder,
             ],
-            [{ identifier: 'TOKEN_WITH_UNDEFINED' }, MockedFromBuilder],
+            [{ identifier: 'TOKEN_WITH_UNDEFINED', metadata: undefined }, MockedFromBuilder],
             [{ identifier: 'TOKEN' }, MockedFromBuilder],
             [{ identifier: ArbitraryClassThree }, MockedFromBuilder],
-            [{ identifier: ArbitraryClassSeven, metadata: { key: 'value' } }, StubbedClass],
             [
-              { identifier: 'TOKEN_METADATA', metadata: { anotherKey: 'anotherValue' } },
+              { identifier: ArbitraryClassSeven, metadata: { key: 'value' } as never },
+              StubbedClass,
+            ],
+            [
+              { identifier: 'TOKEN_METADATA', metadata: { anotherKey: 'anotherValue' } as never },
               MockedFromBuilder,
             ],
             [{ identifier: ArbitraryClassFour }, ArbitraryClassFourMockedLike],
@@ -129,6 +136,14 @@ describe('Unit Mocker Unit Spec', () => {
 
         it('should return an instance of the class as the unit', () => {
           expect(result.instance).toBeInstanceOf(DummyClass);
+        });
+
+        it('should stay mocked', () => {
+          expect(result.container.resolve(ArbitraryClassTwo)).toBe(StubbedClass);
+          expect(result.container.resolve(ArbitraryClassFour)).toBe(ArbitraryClassFourMockedLike);
+          expect(result.container.resolve(ArbitraryClassTwo)).toBe(StubbedClass);
+
+          console.log(result.instance);
         });
 
         it('should apply the mocks to the class properties as well', () => {

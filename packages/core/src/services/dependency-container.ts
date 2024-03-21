@@ -5,29 +5,29 @@ import {
   IdentifierMetadata,
   InjectableIdentifier,
 } from '@suites/common';
-import { StubbedInstance } from '@suites/types';
+import { StubbedInstance, Type } from '@suites/types';
 
-export type IdentifierToMock = [
-  Pick<ClassInjectable, 'identifier'> & { metadata?: unknown },
-  StubbedInstance<unknown> | ConstantValue,
+export type IdentifierToDependency = [
+  Pick<ClassInjectable, 'identifier'> & { metadata?: never },
+  StubbedInstance<unknown> | ConstantValue | Type,
 ];
 
-export interface MocksContainer {
+export interface DependencyContainer {
   resolve<TDependency = unknown>(
     identifier: InjectableIdentifier,
     metadata?: IdentifierMetadata
-  ): StubbedInstance<TDependency> | ConstantValue;
+  ): StubbedInstance<TDependency> | ConstantValue | TDependency | undefined;
 }
 
-export class MocksContainer {
-  public constructor(private readonly identifierToMocksTuples: IdentifierToMock[]) {}
+export class DependencyContainer {
+  public constructor(private readonly identifierToDependency: IdentifierToDependency[]) {}
 
   public resolve<TDependency = unknown>(
     identifier: InjectableIdentifier,
     metadata?: IdentifierMetadata
-  ): StubbedInstance<TDependency> | ConstantValue | undefined {
+  ): StubbedInstance<TDependency> | ConstantValue | TDependency | undefined {
     // If there is one identifier, it is enough to match, no need to check metadata
-    const identifiers = this.identifierToMocksTuples.filter(
+    const identifiers = this.identifierToDependency.filter(
       ([{ identifier: injectableIdentifier }]) => injectableIdentifier === identifier
     );
 
@@ -50,7 +50,7 @@ export class MocksContainer {
         : undefined;
     }
 
-    const foundIdentifier = this.identifierToMocksTuples.find(
+    const foundIdentifier = this.identifierToDependency.find(
       ([{ identifier: injectableIdentifier, metadata }]) =>
         injectableIdentifier === identifier && typeof metadata === 'undefined'
     );
@@ -61,6 +61,6 @@ export class MocksContainer {
   }
 
   public list() {
-    return this.identifierToMocksTuples;
+    return this.identifierToDependency;
   }
 }

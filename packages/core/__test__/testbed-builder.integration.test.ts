@@ -1,106 +1,121 @@
-import { Type } from '@suites/types';
-import { TestBedBuilder, UnitReference, UnitTestBed } from '../src';
+import { StubbedInstance } from '@suites/types';
+import { TestBedBuilder, UnitReference } from '../src';
 import { UnitBuilder } from '../src/services/testbed-builder';
 import { UnitMocker } from '../src/services/unit-mocker';
+import { FakeAdapter } from './assets/integration.assets';
+import { mock } from './assets/mock.static';
 import {
-  ArbitraryClassFive,
-  ArbitraryClassFour,
-  ArbitraryClassOne,
-  ArbitraryClassTwo,
-  ClassUnderTest,
-  FakeAdapter,
-} from './assets/integration.assets';
+  Logger,
+  Repository,
+  UserApiService,
+  UserDal,
+  UserService,
+  UserVerificationService,
+  ApiService,
+  DatabaseService,
+  User,
+} from './injectables-registry.fixture';
 
-const MockedFromBuilder = Symbol.for('MockedFromBuilder');
-const MockedFromMocker = Symbol.for('MockFromMocker');
-const symbolIdentifier = Symbol.for('TOKEN_METADATA');
-
-describe('Builder Integration Test', () => {
-  let underTest: TestBedBuilder<ClassUnderTest>;
+describe('UserService TestBed Builder Integration Test', () => {
   const loggerMock = { warn: jest.fn() } as Partial<Console>;
 
-  // It's a mark for a function that mocks the mock function, don't be confused by the name
-  const mockFunctionMockOfBuilder = jest.fn(() => MockedFromBuilder);
-  const mockFunctionMockOfMocker = jest.fn(() => MockedFromMocker);
+  let unitBuilder: TestBedBuilder<UserService>;
+  let userServiceAsIfItWasUnderTest: UserService;
+  let unitRef: UnitReference;
 
   beforeAll(() => {
-    underTest = UnitBuilder.create<ClassUnderTest>(
-      mockFunctionMockOfBuilder,
-      new UnitMocker(mockFunctionMockOfMocker),
-      FakeAdapter,
-      loggerMock as Console
-    )(ClassUnderTest);
+    unitBuilder = UnitBuilder.create<UserService>(
+      mock,
+      new UnitMocker(mock, loggerMock as Console, FakeAdapter)
+    )(UserService);
+
+    const testBed = unitBuilder
+      .integrate(UserApiService)
+      .integrate(UserDal)
+      .integrate(DatabaseService)
+      .mock(Logger)
+      .using({ log: jest.fn().mockReturnValue('overridden') })
+      .compile();
+
+    userServiceAsIfItWasUnderTest = testBed.unit;
+    unitRef = testBed.unitRef;
   });
 
-  describe('creating a testbed builder with some mock overrides', () => {
-    let unitTestBed: UnitTestBed<ClassUnderTest>;
+  it('should instantiate UserService with all dependencies properly resolved', () => {
+    expect(userServiceAsIfItWasUnderTest).toBeInstanceOf(UserService);
+  });
 
-    beforeAll(() => {
-      unitTestBed = underTest
-        .mock(ArbitraryClassTwo)
-        .using({
-          print: () => 'overridden',
-        })
-        .mock(ArbitraryClassFour)
-        .using({
-          print: () => 'overridden',
-        })
-        .mock('ANOTHER_TOKEN')
-        .using({
-          print: () => 'overridden',
-        })
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        .mock(symbolIdentifier, { key: 'value' })
-        .using({
-          print: () => 'overridden',
-        })
-        .mock<string>('STRING_TOKEN')
-        .using('ARBITRARY_STRING')
-        .mock('TOKEN_WITH_UNDEFINED')
-        .using('SOME_VALUE')
-        .compile();
+  it('should log messages using the overridden Logger.log method when UserService is initialized', () => {
+    const mockedLogger: StubbedInstance<Logger> = unitRef.get<Logger>(Logger);
+
+    expect(mockedLogger.log).toHaveBeenNthCalledWith(1, 'Just logging a message');
+    expect(mockedLogger.log).toHaveBeenNthCalledWith(2, 'UserService initialized');
+  });
+
+  it('should throw an error indicating the dependencies cannot be retrieved as they were exposed in the testbed', () => {
+    expect(() => unitRef.get(DatabaseService)).toThrowError();
+    expect(() => unitRef.get(UserDal)).toThrowError();
+    expect(() => unitRef.get(UserApiService)).toThrowError();
+  });
+
+  describe('creating a user with UserService', () => {
+    let repository: StubbedInstance<Repository>;
+    let userVerService: jest.Mocked<UserVerificationService>;
+    let createdUser: User;
+
+    const userFixture = { name: 'Test User', email: 'test@example.com' } as const;
+
+    beforeAll(async () => {
+      userVerService = unitRef.get(
+        UserVerificationService
+      ) as unknown as jest.Mocked<UserVerificationService>;
+
+      repository = unitRef.get<Repository>('Repository');
+
+      userVerService.verify.mockReturnValue(true);
+      createdUser = await userServiceAsIfItWasUnderTest.create(userFixture);
     });
 
-    describe('override the dependencies from the builder, and leave the rest for the dependencies mocked', () => {
-      it.each([
-        [ArbitraryClassOne.name, undefined, MockedFromMocker, ArbitraryClassOne],
-        [ArbitraryClassTwo.name, undefined, MockedFromBuilder, ArbitraryClassTwo],
-        [ArbitraryClassFive.name, undefined, MockedFromMocker, ArbitraryClassFive],
-        [
-          'custom string-based token with metadata',
-          { metadataKey: 'value' },
-          MockedFromMocker,
-          'ArbitraryClassSix',
-        ],
-        [ArbitraryClassFour.name, undefined, MockedFromBuilder, ArbitraryClassFour],
-        ['custom string-based token with function', undefined, MockedFromBuilder, 'ANOTHER_TOKEN'],
-        ['custom token with undefined value', undefined, 'SOME_VALUE', 'TOKEN_WITH_UNDEFINED'],
-        ['custom symbol-based token', { key: 'value' }, MockedFromBuilder, symbolIdentifier],
-        [ArbitraryClassFive.name, undefined, MockedFromMocker, ArbitraryClassFive],
-        ['custom token with constant value', undefined, 'ARBITRARY_STRING', 'STRING_TOKEN'],
-      ])(
-        'should return a mock or a value for %p, with metadata %p mocked from %p',
-        (
-          name: string,
-          metadata: undefined | unknown,
-          expectedResult: Type | string | symbol,
-          dependency: Type | string | symbol
-        ) => {
-          const stubbedInstance = unitTestBed.unitRef.get(dependency as never, metadata as never);
-          expect(stubbedInstance).toEqual(expectedResult);
-        }
-      );
+    it('should call the verification service to verify the user data because it is mocked', () => {
+      expect(userVerService.verify).toHaveBeenCalledWith(userFixture);
     });
 
-    it('should return an instance of the unit and a unit reference', () => {
-      expect(unitTestBed.unit).toBeInstanceOf(ClassUnderTest);
-      expect(unitTestBed.unitRef).toBeInstanceOf(UnitReference);
+    it('should go through the repository because the database service is exposed', () => {
+      expect(repository.create).toHaveBeenCalledWith(JSON.stringify(userFixture));
     });
 
-    it('should log a warning indicating the dependency was not found when mocking missing dependency', () => {
-      underTest.mock('does-not-exists').using({}).compile();
-      expect(loggerMock.warn).toHaveBeenCalledTimes(1);
+    it('should successfully create and return the same user', () => {
+      expect(createdUser).toEqual(userFixture);
+    });
+  });
+
+  describe('getting a user info with UserService', () => {
+    const userId = '12345';
+
+    let logger: jest.Mocked<Logger>;
+    let apiService: jest.Mocked<ApiService>;
+    let result: string;
+
+    beforeAll(async () => {
+      logger = unitRef.get(Logger) as unknown as jest.Mocked<Logger>;
+      apiService = unitRef.get(ApiService) as unknown as jest.Mocked<ApiService>;
+
+      apiService.fetchData.mockResolvedValue('Data from API');
+
+      result = await userServiceAsIfItWasUnderTest.getUserInfo(userId);
+    });
+
+    it('should not call the logger as the ApiService is mocked and not exposed', () => {
+      expect(logger.log).not.toHaveBeenCalledWith('fetching data');
+    });
+
+    it('should call the mocked ApiService to fetch the user data', () => {
+      const endpointUrl = `https://api.example.com/users/${userId}`;
+      expect(apiService.fetchData).toHaveBeenCalledWith(endpointUrl);
+    });
+
+    it('should go through UserApiService because it is exposed and return the data', () => {
+      expect(result).toEqual('User Data: Data from API');
     });
   });
 });

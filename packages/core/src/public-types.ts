@@ -40,7 +40,7 @@ export interface MockOverride<TDependency, TClass> {
    * @param value - The constant value for the mocked dependency.
    * @returns `TestBedBuilder` instance for chaining further configuration.
    */
-  using(value: TDependency & ConstantValue): TestBedBuilder<TClass>;
+  using(value: TDependency & ConstantValue): Omit<TestBedBuilder<TClass>, 'integrate'>;
 
   /**
    * Specifies the mock implementation to be used for the mocked dependency.
@@ -49,7 +49,7 @@ export interface MockOverride<TDependency, TClass> {
    * @param mockImplementation - The mock implementation for the mocked dependency.
    * @returns `TestBedBuilder` instance for chaining further configuration.
    */
-  using(mockImplementation: DeepPartial<TDependency>): TestBedBuilder<TClass>;
+  using(mockImplementation: DeepPartial<TDependency>): Omit<TestBedBuilder<TClass>, 'integrate'>;
 }
 
 /**
@@ -148,6 +148,8 @@ export interface TestBedBuilder<TClass> {
     identifier: Type<TDependency> | string | symbol,
     identifierMetadata?: IdentifierMetadata
   ): MockOverride<TDependency, TClass>;
+
+  integrate(dependency: Type): TestBedBuilder<TClass>;
 
   /**
    * Finalizes the mocking setup and creates a new UnitTestBed.

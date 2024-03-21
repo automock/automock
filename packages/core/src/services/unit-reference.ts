@@ -5,7 +5,7 @@ import {
   InjectableIdentifier,
   IdentifierNotFoundError,
 } from '@suites/common';
-import { MocksContainer } from './mocks-container';
+import { DependencyContainer } from './dependency-container';
 
 /**
  * Provides a reference to mock objects that have been mocked for testing
@@ -147,12 +147,20 @@ export interface UnitReference {
 }
 
 export class UnitReference {
-  public constructor(private readonly mocksContainer: MocksContainer) {}
+  public constructor(
+    private readonly mocksContainer: DependencyContainer,
+    private readonly instances: Type[]
+  ) {}
 
   public get<TDependency>(
     identifier: InjectableIdentifier,
     metadata?: IdentifierMetadata
   ): StubbedInstance<TDependency> | ConstantValue {
+    if (typeof identifier === 'function' && this.instances.includes(identifier)) {
+      const message = referenceDependencyNotFoundError(identifier, metadata);
+      throw new IdentifierNotFoundError(message);
+    }
+
     const dependency = this.mocksContainer.resolve<TDependency>(identifier, metadata);
 
     if (!dependency) {
@@ -160,7 +168,7 @@ export class UnitReference {
       throw new IdentifierNotFoundError(message);
     }
 
-    return dependency;
+    return dependency as StubbedInstance<TDependency> | ConstantValue;
   }
 }
 
