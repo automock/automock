@@ -1,0 +1,35 @@
+import { PackageResolver } from '../src/package-resolver';
+import { DependencyInjectionAdapter } from '@suites/types.di';
+
+describe('Automock Adapter Package Resolving Integration Test', () => {
+  let packageResolver: PackageResolver<DependencyInjectionAdapter>;
+
+  describe('Resolving an adapter with default export', () => {
+    beforeAll(() => {
+      packageResolver = new PackageResolver(
+        { test: './assets/test-adapter' },
+        { resolve: require.resolve, require }
+      );
+    });
+
+    it('should successfully resolve the adapter package', () => {
+      const adapter = packageResolver.resolveCorrespondingAdapter();
+      expect(adapter.inspect({} as never)).toBe('success');
+    });
+  });
+
+  describe('Resolving an adapter with no default export', () => {
+    beforeAll(() => {
+      packageResolver = new PackageResolver(
+        { test: './assets/invalid-adapter' },
+        { resolve: require.resolve, require }
+      );
+    });
+
+    it('should failed resolving the adapter package and throw an error', () => {
+      expect(() => packageResolver.resolveCorrespondingAdapter()).toThrow(
+        new Error('Adapter has no default export')
+      );
+    });
+  });
+});

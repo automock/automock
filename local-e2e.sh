@@ -31,7 +31,7 @@ setup_and_test() {
   framework=$1
   library=$2
 
-  execute_with_emoji "🧰" "\e[1mSetting up $framework with $library\e[0m" cp -r "$PWD/e2e/tarballs" "$PWD/e2e/$framework/$library"
+  execute_with_emoji "🧰" "Setting up $framework with $library" cp -r "$PWD/e2e/tarballs" "$PWD/e2e/$framework/$library"
   printf "\n"
   execute_with_emoji "💻" "Installing dependencies for $framework with $library" rm -rf "$PWD/e2e/$framework/$library/node_modules"
   echo "📦 Installing dependencies for $framework with $library"
@@ -54,7 +54,7 @@ verdaccio/verdaccio
 sleep 3
 
 # Clean up and build
-execute_with_emoji "🧪" "Cleaning up" yarn lerna exec rimraf dist && rm -rf packages/types/index.d.ts
+execute_with_emoji "🧪" "Cleaning up" yarn lerna run prebuild
 echo "🚧" "Building"
 yarn build
 

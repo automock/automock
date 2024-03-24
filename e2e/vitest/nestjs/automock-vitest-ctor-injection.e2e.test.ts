@@ -1,7 +1,5 @@
 import { beforeAll, describe, test, expect } from 'vitest';
-import { UnitReference } from '@suites/core';
-import { TestBed } from '@suites/vitest';
-import { Mocked } from '@vitest/spy';
+import { TestBed, Mocked, UnitReference } from '@suites/unit';
 import {
   ClassThatIsNotInjected,
   Foo,
@@ -65,7 +63,7 @@ describe('Suites Vitest / NestJS E2E Test Ctor', () => {
     });
 
     test('call the unit instance method', async () => {
-      const testClassTwo: Mocked<TestClassTwo> = unitRef.get(TestClassTwo);
+      const testClassTwo = unitRef.get(TestClassTwo);
 
       testClassTwo.bar.mockResolvedValue('context');
 

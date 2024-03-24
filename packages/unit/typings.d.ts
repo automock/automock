@@ -1,0 +1,1 @@
+export { TestBed } from './dist';
